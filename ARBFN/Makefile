@@ -1,15 +1,15 @@
 # 2024, J Dehmel, J Schiffbauer
 
-CPP := g++ -pedantic -Wall
-TARGETS := fix_arbfn.o
-HEADERS := fix_arbfn.hpp
+CPP := mpicxx -g -O3 -pedantic -Wall -shared -fPIC
+HEADERS := fix_arbfn.hpp interchange.hpp
+LIBS := -lboost_mpi -lboost_json -lboost_serialization
 
-.PHONY:	all
-all:	$(TARGETS)
+arbfn.so:	fix_arbfn.o interchange.o
+	$(CPP) $^ -o $@ $(LIBS)
 
 %.o:	%.cpp $(HEADERS)
-	$(CPP) -o $@ $<
+	$(CPP) -c -o $@ $<
 
 .PHONY:	clean
 clean:
-	rm -f *.o
+	rm -f *.o *.so

@@ -2,6 +2,8 @@
 # Arbitrary Single-Atom Fixes via MPI in LAMMPS
 J Dehmel, J Schiffbauer
 
+**Note:** Requires `libboost` for `JSON` and `MPI`.
+
 ## Goals
 
 We want to send arbitrary fix data to LAMMPS atoms as a function
@@ -79,20 +81,25 @@ When a worker is instantiated, it will send:
 The controller will then respond:
 ```json
 {
-    "type": "acknowledge"
+    "type": "ack",
+    "uid": 1234
 }
 ```
 
 When a worker is destructed, it will send:
 ```json
 {
-    "type": "deregister"
+    "type": "deregister",
+    "uid": 1234
 }
 ```
 
 When a worker is ready for an update, it will send:
 ```json
 {
+    "type": "request",
+    "uid": 1234,
+
     // The number of milliseconds it will wait before an error
     "expectResponse": 100.0,
 
