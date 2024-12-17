@@ -1,7 +1,7 @@
 #ifndef ARBFN_INTERCHANGE_HPP
 #define ARBFN_INTERCHANGE_HPP
 
-static_assert(__cplusplus >= 2017'00ULL);
+static_assert(__cplusplus >= 201100ULL, "Invalid C++ version!");
 
 #include <boost/json/object.hpp>
 #include <boost/json/serialize.hpp>

@@ -141,7 +141,7 @@ uint send_registration(uint &_controller_rank)
 
   json.clear();
   do {
-    result = await_packet(1'000.0, json, rng, time_dist, _controller_rank);
+    result = await_packet(1000.0, json, rng, time_dist, _controller_rank);
     assert(result);
   } while (!json.contains("type") || json.at("type") != "ack" || !json.contains("uid"));
 

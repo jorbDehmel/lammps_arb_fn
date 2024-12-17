@@ -11,7 +11,7 @@ LAMMPS_NS::FixArbFn::~FixArbFn()
 void LAMMPS_NS::FixArbFn::init()
 {
   // Get controller rank
-  max_ms = 2'000.0;
+  max_ms = 2000.0;
   uid = send_registration(controller_rank);
   assert(uid);
 }
