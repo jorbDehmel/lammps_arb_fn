@@ -1,5 +1,4 @@
 CompileFlags:
   Add:
     - "-I/usr/include"
-    - "-I$LAMMPS/src"
-    - "-ferror-limit=999"
+    - "-std=c++11"

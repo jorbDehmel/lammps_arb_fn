@@ -7,7 +7,7 @@
 #include <random>
 #include <thread>
 
-const static size_t num_updates = 1'000;
+const static size_t num_updates = 1000;
 const static size_t num_atoms = 128;
 const static double dt = 0.01;
 const static double max_ms = 50.0;
@@ -15,12 +15,12 @@ const static double max_ms = 50.0;
 int main()
 {
   std::uniform_real_distribution<double> dist(-100.0, 100.0);
-  std::uniform_int_distribution<uint> time_dist(0, 10'000);
+  std::uniform_int_distribution<uint> time_dist(0, 10000);
   std::random_device rng;
   std::vector<AtomData> atoms;
   uint controller_rank;
 
-  std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng) + 1'000));
+  std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng) + 1000));
 
   MPI_Init(NULL, NULL);
 
