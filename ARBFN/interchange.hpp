@@ -1,7 +1,8 @@
 #ifndef ARBFN_INTERCHANGE_HPP
 #define ARBFN_INTERCHANGE_HPP
 
-#include <boost/json.hpp>
+static_assert(__cplusplus >= 2017'00ULL);
+
 #include <boost/json/object.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/json/value.hpp>
@@ -58,13 +59,13 @@ FixData from_json(const boost::json::value &_to_parse);
  * @returns true on success, false on failure
  */
 bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const int &_controller_rank);
+                 const double &_max_ms, const uint &_controller_rank);
 
 /**
  * @brief Sends a registration packet to the controller.
  * @return The UID associated with this worker, 0 on error.
  */
-uint send_registration(const int &_controller_rank);
+uint send_registration(uint &_controller_rank);
 
 /**
  * @brief Sends a deregistration packet to the controller.

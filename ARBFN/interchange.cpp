@@ -3,7 +3,7 @@
 #include <boost/json/array.hpp>
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
-#include <boost/mpi.hpp>
+#include <boost/mpi/collectives/broadcast.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi/environment.hpp>
 #include <chrono>
@@ -43,21 +43,23 @@ FixData from_json(const boost::json::value &_to_parse)
 /**************************************************************/
 
 bool await_packet(const double &_max_ms, boost::json::object &_into, std::random_device &rng,
-                  std::uniform_int_distribution<uint> &time_dist, const int &_controller_rank)
+                  std::uniform_int_distribution<uint> &time_dist, uint &_received_from)
 {
   bool got_any_packet;
   std::chrono::high_resolution_clock::time_point send_time, now;
   boost::mpi::communicator comm;
   std::string response;
   uint64_t elapsed_us;
+  boost::mpi::status status;
 
   got_any_packet = false;
   send_time = std::chrono::high_resolution_clock::now();
   while (!got_any_packet) {
     // Check for message recv resolution
-    if (comm.iprobe(_controller_rank).has_value()) {
-      comm.recv(_controller_rank, boost::mpi::any_tag, response);
+    if (comm.iprobe().has_value()) {
+      status = comm.recv(boost::mpi::any_source, boost::mpi::any_tag, response);
       got_any_packet = true;
+      _received_from = status.source();
       break;
     }
 
@@ -82,13 +84,14 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
 }
 
 bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const int &_controller_rank)
+                 const double &_max_ms, const uint &_controller_rank)
 {
   bool got_fix, result;
   boost::json::object json_send, json_recv;
   boost::mpi::communicator comm;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
+  uint received_from;
 
   // Prepare and send the packet
   json_send["type"] = "request";
@@ -103,13 +106,12 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   got_fix = false;
   while (!got_fix) {
     // Await any sort of packet
-    result = await_packet(_max_ms, json_recv, rng, time_dist, _controller_rank);
-    if (!result) { return false; }
+    result = await_packet(_max_ms, json_recv, rng, time_dist, received_from);
+    if (!result || received_from != _controller_rank) { return false; }
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
-      // Delay and continue
-      std::this_thread::sleep_for(std::chrono::microseconds(rand() % 500));
+      comm.send(_controller_rank, 0, boost::json::serialize(json_send));
     } else {
       assert(json_recv["type"] == "response");
       got_fix = true;
@@ -124,7 +126,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   return true;
 }
 
-uint send_registration(const int &_controller_rank)
+uint send_registration(uint &_controller_rank)
 {
   boost::mpi::communicator comm;
   boost::json::object json;
@@ -133,14 +135,16 @@ uint send_registration(const int &_controller_rank)
   bool result;
 
   json["type"] = "register";
-  comm.send(_controller_rank, 0, boost::json::serialize(json));
+  for (int i = 0; i < comm.size(); ++i) {
+    if (i != comm.rank()) { comm.send(i, 0, boost::json::serialize(json)); }
+  }
 
   json.clear();
-  result = await_packet(1'000.0, json, rng, time_dist, _controller_rank);
-  assert(result);
+  do {
+    result = await_packet(1'000.0, json, rng, time_dist, _controller_rank);
+    assert(result);
+  } while (!json.contains("type") || json.at("type") != "ack" || !json.contains("uid"));
 
-  // If packet is malformed, uid is zero (error state)
-  if (!json.contains("type") || json.at("type") != "ack" || !json.contains("uid")) { return 0; }
   return json.at("uid").as_int64();
 }
 

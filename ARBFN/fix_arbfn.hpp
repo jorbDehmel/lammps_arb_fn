@@ -29,10 +29,13 @@ class FixArbFn : public Fix {
   FixArbFn(class LAMMPS *, int, char **);
   ~FixArbFn() override;
 
+  void init() override;
   void post_force(int) override;
 
  protected:
   uint uid;
+  uint controller_rank;
+  double max_ms;
 };
 }    // namespace LAMMPS_NS
 

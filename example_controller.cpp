@@ -29,13 +29,12 @@ int main()
 
   MPI_Init(NULL, NULL);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-  assert(world_rank == 0);
 
-  std::cout << "Starting controller...\n";
+  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Starting controller\n";
 
   // For as long as there are connections left
   do {
-    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Waiting for packet...\n";
+    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Waiting for packet\n";
 
     // Await some packet
     const auto status = comm.recv(boost::mpi::any_source, boost::mpi::any_tag, message);
@@ -67,12 +66,6 @@ int main()
       assert(uids.count(uid) != 0);
       uids.erase(uid);
       open_uids.push_back(uid);
-
-      if (!uids.empty()) {
-        std::cout << "Remaining workers: [";
-        for (const auto &worker : uids) { std::cout << worker << ", "; }
-        std::cout << "\b\b]\n" << std::flush;
-      }
     }
 
     // Data processing
@@ -98,7 +91,7 @@ int main()
     }
   } while (!uids.empty());
 
-  std::cout << "Halting controller...\n";
+  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Halting controller\n";
   MPI_Finalize();
 
   return 0;

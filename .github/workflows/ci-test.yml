@@ -1,0 +1,29 @@
+name: GitHub Actions CI/CD
+
+on:
+  push:
+    branches: [ "main", "staging" ]
+  pull_request:
+    branches: [ "main", "staging" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y g++ build-essential python3 libopenmpi-dev libboost-all-dev
+        pip install mpi4py
+        sudo chmod +x example_controller_2.py
+        make
+
+    - name: Run tests
+      run: |
+        make test

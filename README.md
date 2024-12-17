@@ -1,5 +1,8 @@
 
 # Arbitrary Single-Atom Fixes via MPI in LAMMPS
+
+![Test Badge](https://github.com/jorbDehmel/lammps_arb_fn/actions/workflows/ci-test.yml/badge.svg)
+
 J Dehmel, J Schiffbauer
 
 **Note:** Requires `libboost` for `JSON` and `MPI`.
@@ -71,22 +74,27 @@ worker-end deadlocks.
 For ease of use, we will use simple JSON objects for our
 messages.
 
-When a worker is instantiated, it will send:
+When a worker is instantiated, it will *broadcast* to all other
+nodes:
 ```json
 {
     "type": "register"
 }
 ```
 
-The controller will then respond:
+The controller (and no-one else) will then respond:
 ```json
 {
     "type": "ack",
     "uid": 1234
 }
 ```
+where 'uid' is an arbitrary unique ID number for the worker (do
+not assume that this is the same as the node's MPI rank).
 
-When a worker is destructed, it will send:
+In the `register`/`ack` process, the worker will have also
+identified which node is the controller. When a worker is
+destructed, it will send:
 ```json
 {
     "type": "deregister",
@@ -111,6 +119,7 @@ When a worker is ready for an update, it will send:
     ]
 }
 ```
+If the given deadline is exceeded, an error will be thrown.
 
 The controller will then send one of two responses. If it needs
 more time, it will send:
@@ -121,12 +130,13 @@ more time, it will send:
 
     // The number of milliseconds the worker should wait until
     // the next packet
-    "expectResponse": 1000.0,
+    "expectResponse": 1000.0
 }
 ```
 
-"Waiting" packets will not get responses. Once the fix data is
-ready, the controller will send:
+"Waiting" packets will prompt a precisely repeated request from
+the worker. Once the fix data is ready, the controller will
+send:
 ```json
 {
     // The packet type
@@ -144,6 +154,24 @@ ready, the controller will send:
 
 The worker will then add the fixes accordingly and resume the
 simulation.
+
+## Interfacing with `boost::mpi`'s `std::string` Serialization
+
+Although this protocol was designed to be minimally language
+dependant, the use of `C++`'s `boost::mpi` library for `MPI`
+communication has imposed some extra restrictions upon its
+implementation. Namely, `boost` serialization of `std::string`s
+(used for encoding JSON) is not simply an array of raw bytes: It
+instead first sends a 4-byte unsigned integer containing the
+number of bytes to follow, then followed by the bytes of the
+string buffer. For instance, if it was to send
+`std::string("{\"fizz\":123}")`, it would instead transmit 4
+bytes representing the unsigned integer $12$ followed by the
+bytes representing the ASCII string `{"fizz":123}`. This is not
+of note to the average user, but non-`C++` controller
+implementations will have to make note of this. An example
+avoiding this pitfall can be found in
+`./example_controller_2.py`.
 
 ## Disclaimer
 

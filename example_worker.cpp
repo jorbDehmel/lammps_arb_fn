@@ -18,6 +18,7 @@ int main()
   std::uniform_int_distribution<uint> time_dist(0, 10'000);
   std::random_device rng;
   std::vector<AtomData> atoms;
+  uint controller_rank;
 
   std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng) + 1'000));
 
@@ -42,10 +43,12 @@ int main()
     atoms.push_back(cur);
   }
 
-  const uint uid = send_registration(0);
+  const uint uid = send_registration(controller_rank);
+  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Got controller rank " << controller_rank
+            << '\n';
   assert(uid != 0);
 
-  std::cout << "Worker with uid " << uid << " launched.\n";
+  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker with uid " << uid << " launched\n";
 
   // Collect our atoms
   const uint n = atoms.size();
@@ -69,9 +72,11 @@ int main()
     }
 
     // Interchange
-    std::cout << "Worker " << uid << " requests interchange " << step << "...\n";
+    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " requests interchange "
+              << step << "\n";
     assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, 0));
-    std::cout << "Worker " << uid << " got fix data " << step << "!\n";
+    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " got fix data " << step
+              << "\n";
 
     // Update
     for (size_t j = 0; j < n; ++j) {
