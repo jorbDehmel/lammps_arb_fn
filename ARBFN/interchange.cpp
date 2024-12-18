@@ -113,14 +113,14 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
     if (json_recv.at("type") == "waiting") {
       comm.send(_controller_rank, 0, boost::json::serialize(json_send));
     } else {
-      assert(json_recv["type"] == "response");
+      if (json_recv["type"] != "response") { return false; }
       got_fix = true;
       break;
     }
   }
 
   // Transcribe fix data
-  assert(json_recv.at("atoms").as_array().size() == _n);
+  if (json_recv.at("atoms").as_array().size() != _n) { return false; }
   for (size_t i = 0; i < _n; ++i) { _into[i] = from_json(json_recv.at("atoms").as_array().at(i)); }
 
   return true;
@@ -142,7 +142,7 @@ uint send_registration(uint &_controller_rank)
   json.clear();
   do {
     result = await_packet(1000.0, json, rng, time_dist, _controller_rank);
-    assert(result);
+    if (!result) { return 0; }
   } while (!json.contains("type") || json.at("type") != "ack" || !json.contains("uid"));
 
   return json.at("uid").as_int64();

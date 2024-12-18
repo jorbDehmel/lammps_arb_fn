@@ -10,18 +10,23 @@
 
     See the README file in the top-level LAMMPS directory.
 -------------------------------------------------------------------------
-    Defines the fix_arbfn class for extending LAMMPS. Based on FixQMMM
+    Defines the `fix arbfn` class for extending LAMMPS. Based on FixQMMM
     from the QMMM package. Based on work funded by NSF grant
-    <TODO: GRANT NUMBER HERE!!!!>
+    <TODO: GRANT NUMBER HERE!!!!> at Colorado Mesa University.
 
     J Dehmel, J Schiffbauer, 2024
 ------------------------------------------------------------------------- */
 
+#ifdef FIX_CLASS
+// clang-format off
+FixStyle(arbfn,FixArbFn);
+// clang-format on
+#else
+
 #ifndef FIX_ARBFN_HPP
 #define FIX_ARBFN_HPP
 
-// #include "fix.h"
-#include "/home/jorb/Programs/mylammps/src/fix.h"
+#include "fix.h"
 
 namespace LAMMPS_NS {
 class FixArbFn : public Fix {
@@ -39,4 +44,5 @@ class FixArbFn : public Fix {
 };
 }    // namespace LAMMPS_NS
 
-#endif
+#endif    // FIX_ARBFN_HPP
+#endif    // FIX_CLASS

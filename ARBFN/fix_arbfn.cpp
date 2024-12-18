@@ -1,7 +1,30 @@
+#include <string>
+#include <vector>
+
 #include "fix_arbfn.hpp"
 #include "interchange.hpp"
 
-LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp, _c, _v) {}
+LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp, _c, _v)
+{
+  // Handle keywords here
+  max_ms = 2000.0;
+
+  for (int i = 0; i < _c; ++i) {
+    const char *const arg = _v[i];
+
+    if (strcmp(arg, "maxdelay") == 0) {
+      if (i + 1 >= _c) {
+        error->all(FLERR, "Malformed `fix arbfn': Missing argument for `maxdelay'.");
+      }
+      max_ms = utils::numeric(FLERR, _v[i + 1], false, _lmp);
+      ++i;
+    }
+
+    else {
+      error->all(FLERR, "Malformed `fix arbfn': Unknown keyword `" + std::string(arg) + "'.");
+    }
+  }
+}
 
 LAMMPS_NS::FixArbFn::~FixArbFn()
 {
@@ -10,10 +33,10 @@ LAMMPS_NS::FixArbFn::~FixArbFn()
 
 void LAMMPS_NS::FixArbFn::init()
 {
-  // Get controller rank
-  max_ms = 2000.0;
   uid = send_registration(controller_rank);
-  assert(uid);
+  if (uid == 0) {
+    error->all(FLERR, "`fix arbfn' failed to register with controller: Ensure it is running.");
+  }
 }
 
 void LAMMPS_NS::FixArbFn::post_force(int)
