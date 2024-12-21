@@ -1,8 +1,7 @@
 #include <string>
 #include <vector>
 
-#include "fix_arbfn.hpp"
-#include "interchange.hpp"
+#include "fix_arbfn.h"
 
 LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp, _c, _v)
 {
@@ -80,4 +79,11 @@ void LAMMPS_NS::FixArbFn::post_force(int)
     f[i][1] += to_recv[i].dfy;
     f[i][2] += to_recv[i].dfz;
   }
+}
+
+int LAMMPS_NS::FixArbFn::setmask()
+{
+  int mask = 0;
+  mask |= LAMMPS_NS::FixConst::POST_FORCE;
+  return mask;
 }
