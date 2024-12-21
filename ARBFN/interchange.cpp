@@ -1,17 +1,31 @@
-#include "interchange.hpp"
+/**
+ * @brief Defines library functions for use in the ARBFN library
+ * @author J Dehmel, J Schiffbauer, 2024, MIT License
+ */
 
-#include <boost/json/array.hpp>
-#include <boost/json/object.hpp>
-#include <boost/json/parse.hpp>
-#include <boost/mpi/collectives/broadcast.hpp>
-#include <boost/mpi/communicator.hpp>
-#include <boost/mpi/environment.hpp>
-#include <chrono>
-#include <cstddef>
+#include "interchange.h"
+#include <boost/json/src.hpp>
+#include <iostream>
 #include <mpi.h>
-#include <random>
-#include <thread>
+#include <sstream>
 
+/**
+ * @brief Turn a JSON object into a std::string
+ * @param _what The JSON to stringify
+ * @return The string version
+ */
+std::string json_to_str(boost::json::value _what)
+{
+  std::stringstream s;
+  s << _what;
+  return s.str();
+}
+
+/**
+ * @brief Yields a string JSON version of the given atom
+ * @param _what The atom to JSON-ify
+ * @return The serialized version of the atom
+ */
 boost::json::object to_json(const AtomData &_what)
 {
   boost::json::object j;
@@ -29,6 +43,11 @@ boost::json::object to_json(const AtomData &_what)
   return j;
 }
 
+/**
+ * @brief Parses some JSON object into raw fix data.
+ * @param _to_parse The JSON object to load from
+ * @return The deserialized version of the object
+ */
 FixData from_json(const boost::json::value &_to_parse)
 {
   FixData f;
@@ -40,26 +59,41 @@ FixData from_json(const boost::json::value &_to_parse)
   return f;
 }
 
-/**************************************************************/
-
-bool await_packet(const double &_max_ms, boost::json::object &_into, std::random_device &rng,
-                  std::uniform_int_distribution<uint> &time_dist, uint &_received_from)
+/**
+ * @brief Await an MPI packet for some amount of time, throwing an error if none arrives.
+ * @param _max_ms The max number of milliseconds to wait before error
+ * @param _into The `boost::json` to save the packet into
+ * @param _rng Random number generator
+ * @param _time_dist Uniform int range for use w/ `_rng`
+ * @param _received_from Where to save the UID of the sender
+ * @return True on success, false on failure
+ */
+bool await_packet(const double &_max_ms, boost::json::object &_into, std::random_device &_rng,
+                  std::uniform_int_distribution<uint> &_time_dist, uint &_received_from)
 {
   bool got_any_packet;
   std::chrono::high_resolution_clock::time_point send_time, now;
-  boost::mpi::communicator comm;
+  MPI_Comm comm = MPI_COMM_WORLD;
   std::string response;
   uint64_t elapsed_us;
-  boost::mpi::status status;
+  MPI_Status status;
+  int flag;
+  char *buffer;
 
   got_any_packet = false;
   send_time = std::chrono::high_resolution_clock::now();
   while (!got_any_packet) {
     // Check for message recv resolution
-    if (comm.iprobe().has_value()) {
-      status = comm.recv(boost::mpi::any_source, boost::mpi::any_tag, response);
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
+    if (flag && status._ucount > 0) {
+      buffer = new char[status._ucount + 1];
+      MPI_Recv(buffer, status._ucount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, comm, &status);
+      buffer[status._ucount] = '\0';
+      response = buffer;
+      delete[] buffer;
+
       got_any_packet = true;
-      _received_from = status.source();
+      _received_from = status.MPI_SOURCE;
       break;
     }
 
@@ -70,12 +104,12 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
     // If it has been too long, indicate error
     if (elapsed_us / 1000.0 > _max_ms) {
       // Indicate error
-      std::cerr << "Timeout!\n" << std::flush;
+      std::cerr << "Timeout!\n";
       return false;
     }
 
     // Else, sleep for a bit
-    std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng)));
+    std::this_thread::sleep_for(std::chrono::microseconds(_time_dist(_rng)));
   }
 
   // Unwrap packet
@@ -83,12 +117,21 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
   return true;
 }
 
+/**
+ * @brief Send the given atom data, then receive the given fix data. This is blocking, but does not allow worker-side gridlocks.
+ * @param _n The number of atoms/fixes in the arrays.
+ * @param _from An array of atom data to send
+ * @param _into An array of fix data that was received
+ * @param _id The UID given to this worker at registration
+ * @param _max_ms The max number of milliseconds to await each response
+ * @returns true on success, false on failure
+ */
 bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
                  const double &_max_ms, const uint &_controller_rank)
 {
   bool got_fix, result;
   boost::json::object json_send, json_recv;
-  boost::mpi::communicator comm;
+  MPI_Comm comm = MPI_COMM_WORLD;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
   uint received_from;
@@ -100,7 +143,9 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   boost::json::array list;
   for (size_t i = 0; i < _n; ++i) { list.push_back(to_json(_from[i])); }
   json_send["atoms"] = list;
-  comm.send(_controller_rank, 0, boost::json::serialize(json_send));
+
+  std::string to_send = json_to_str(json_send) + "\0";
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
 
   // Await response
   got_fix = false;
@@ -111,7 +156,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
-      comm.send(_controller_rank, 0, boost::json::serialize(json_send));
+      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
     } else {
       if (json_recv["type"] != "response") { return false; }
       got_fix = true;
@@ -126,17 +171,29 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   return true;
 }
 
+/**
+ * @brief Sends a registration packet to the controller.
+ * @return The UID associated with this worker, 0 on error.
+ */
 uint send_registration(uint &_controller_rank)
 {
-  boost::mpi::communicator comm;
+  MPI_Comm comm = MPI_COMM_WORLD;
   boost::json::object json;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
+  std::string to_send;
+  int world_size, rank;
   bool result;
 
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &world_size);
+
   json["type"] = "register";
-  for (int i = 0; i < comm.size(); ++i) {
-    if (i != comm.rank()) { comm.send(i, 0, boost::json::serialize(json)); }
+  for (int i = 0; i < world_size; ++i) {
+    if (i != rank) {
+      to_send = json_to_str(json) + "\0";
+      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, i, 0, comm);
+    }
   }
 
   json.clear();
@@ -148,14 +205,18 @@ uint send_registration(uint &_controller_rank)
   return json.at("uid").as_int64();
 }
 
+/**
+ * @brief Sends a deregistration packet to the controller.
+ * @param _id The UID granted to this worker at registration
+ */
 void send_deregistration(const uint &_id, const int &_controller_rank)
 {
-  boost::mpi::communicator comm;
+  MPI_Comm comm = MPI_COMM_WORLD;
   boost::json::object to_encode;
   std::string to_send;
 
   to_encode["type"] = "deregister";
   to_encode["uid"] = _id;
-  to_send = boost::json::serialize(to_encode);
-  comm.send(_controller_rank, 0, to_send);
+  to_send = json_to_str(to_encode) + "\0";
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
 }
