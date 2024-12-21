@@ -1,8 +1,9 @@
 CPP := mpicxx -O3 -std=c++11
 LIBS := ARBFN/interchange.o
+EXTRA ?=
 
 %.o:	%.cpp
-	$(CPP) -c -o $@ $^
+	$(CPP) -c -o $@ $^ $(EXTRA)
 
 example_controller.out:	example_controller.o
 	$(CPP) -o $@ $^
