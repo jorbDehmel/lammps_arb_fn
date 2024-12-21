@@ -26,7 +26,10 @@ FixStyle(arbfn,FixArbFn);
 #ifndef FIX_ARBFN_HPP
 #define FIX_ARBFN_HPP
 
+#include "atom.h"
+#include "error.h"
 #include "fix.h"
+#include "interchange.h"
 
 namespace LAMMPS_NS {
 class FixArbFn : public Fix {
@@ -36,6 +39,7 @@ class FixArbFn : public Fix {
 
   void init() override;
   void post_force(int) override;
+  int setmask() override;
 
  protected:
   uint uid;

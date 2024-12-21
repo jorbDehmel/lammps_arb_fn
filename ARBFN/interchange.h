@@ -1,11 +1,16 @@
-#ifndef ARBFN_INTERCHANGE_HPP
-#define ARBFN_INTERCHANGE_HPP
+/**
+ * @brief Defines library functions for use in the ARBFN library
+ * @author J Dehmel, J Schiffbauer, 2024, MIT License
+ */
 
-static_assert(__cplusplus >= 201100ULL, "Invalid C++ version!");
+#ifndef ARBFN_INTERCHANGE_H
+#define ARBFN_INTERCHANGE_H
 
-#include <boost/json/object.hpp>
-#include <boost/json/serialize.hpp>
-#include <boost/json/value.hpp>
+#include <chrono>
+#include <cstddef>
+#include <mpi.h>
+#include <random>
+#include <thread>
 
 /** @struct AtomData
  *  @brief Represents an atom
@@ -34,20 +39,6 @@ struct AtomData {
 struct FixData {
   double dfx, dfy, dfz;
 };
-
-/**
- * @brief Yields a string JSON version of the given atom
- * @param _what The atom to JSON-ify
- * @return The serialized version of the atom
- */
-boost::json::object to_json(const AtomData &_what);
-
-/**
- * @brief Parses some JSON object into raw fix data.
- * @param _to_parse The JSON object to load from
- * @return The deserialized version of the object
- */
-FixData from_json(const boost::json::value &_to_parse);
 
 /**
  * @brief Send the given atom data, then receive the given fix data. This is blocking, but does not allow worker-side gridlocks.
