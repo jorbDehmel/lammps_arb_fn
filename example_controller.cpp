@@ -4,12 +4,7 @@ arbitrary C++ controllers: Just make sure you start the
 controller with the rest of the LAMMPS MPI jobs!
 */
 
-#include <boost/json.hpp>
-#include <boost/json/object.hpp>
-#include <boost/json/parse.hpp>
-#include <boost/json/serializer.hpp>
-#include <boost/mpi.hpp>
-#include <boost/mpi/communicator.hpp>
+#include <boost/json/src.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -18,13 +13,42 @@ controller with the rest of the LAMMPS MPI jobs!
 #include <set>
 #include <string>
 
+void send_json(MPI_Comm &_comm, const int &_target, const int &_tag,
+               const boost::json::value &_what)
+{
+  std::stringstream s;
+  std::string raw;
+
+  s << _what;
+  raw = s.str() + "\0";
+  MPI_Send(raw.c_str(), raw.size(), MPI_CHAR, _target, _tag, _comm);
+}
+
+MPI_Status recv_json(MPI_Comm &_comm, const int &_source, boost::json::value &_into)
+{
+  MPI_Status out;
+  char *buffer;
+
+  MPI_Probe(_source, MPI_ANY_TAG, _comm, &out);
+  assert(out._ucount > 0);
+  buffer = new char[out._ucount + 1];
+
+  MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
+  buffer[out._ucount] = '\0';
+  _into = boost::json::parse(buffer);
+
+  delete[] buffer;
+  return out;
+}
+
 int main()
 {
   std::set<uint> uids;
   std::list<uint> open_uids = {1};
   boost::json::object json;
+  boost::json::value json_val;
   std::string message;
-  boost::mpi::communicator comm;
+  MPI_Comm comm = MPI_COMM_WORLD;
   int world_rank;
 
   MPI_Init(NULL, NULL);
@@ -37,8 +61,8 @@ int main()
     std::cout << __FILE__ << ":" << __LINE__ << "> " << "Waiting for packet\n";
 
     // Await some packet
-    const auto status = comm.recv(boost::mpi::any_source, boost::mpi::any_tag, message);
-    json = boost::json::parse(message).as_object();
+    const auto status = recv_json(comm, MPI_ANY_SOURCE, json_val);
+    json = json_val.as_object();
 
     std::cout << __FILE__ << ":" << __LINE__ << "> " << "Got message w/ type " << json["type"]
               << "\n";
@@ -57,7 +81,8 @@ int main()
       uids.insert(open_uids.front());
       open_uids.pop_front();
 
-      comm.send(status.source(), status.tag(), boost::json::serialize(json));
+      json_val = json;
+      send_json(comm, status.MPI_SOURCE, status.MPI_TAG, json_val);
     }
 
     else if (json["type"] == "deregister") {
@@ -87,7 +112,7 @@ int main()
       assert(json["atoms"].as_array().size() == json_to_send["atoms"].as_array().size());
 
       // Send fix data back
-      comm.send(status.source(), status.tag(), boost::json::serialize(json_to_send));
+      send_json(comm, status.MPI_SOURCE, status.MPI_TAG, json_to_send);
     }
   } while (!uids.empty());
 

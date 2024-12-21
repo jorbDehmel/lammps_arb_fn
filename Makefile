@@ -1,17 +1,14 @@
-CPP := mpicxx -pedantic -Wall -g -O3 -std=c++11
-LIBS := -lboost_mpi -lboost_json -lboost_serialization
-
-.PHONY:	all
-all:	example_controller.out example_worker.out
+CPP := mpicxx -O3 -std=c++11
+LIBS := ARBFN/interchange.o
 
 %.o:	%.cpp
-	$(CPP) -c -o $@ $<
+	$(CPP) -c -o $@ $^
 
-%.out:	%.o ARBFN/interchange.o
-	$(CPP) -o $@ $^ $(LIBS)
+example_controller.out:	example_controller.o
+	$(CPP) -o $@ $^
 
-ARBFN/interchange.o:	ARBFN/interchange.cpp ARBFN/interchange.hpp
-	$(MAKE) -C ARBFN interchange.o
+%.out:	%.o $(LIBS)
+	$(CPP) -o $@ $^
 
 .PHONY:	format
 format:
@@ -43,8 +40,8 @@ clean:
 cwd := $(shell pwd)
 
 # Enter into the docker container
-.PHONY: run
-run:	| build Makefile
+.PHONY: launch-docker
+launch-docker:	| build Makefile
 	docker run \
 		--privileged \
 		--mount type=bind,source="/dev/",target="/dev/" \

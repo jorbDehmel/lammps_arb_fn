@@ -1,4 +1,5 @@
-#include "ARBFN/interchange.hpp"
+#include "ARBFN/interchange.h"
+
 #include <cassert>
 #include <chrono>
 #include <cstddef>

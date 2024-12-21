@@ -5,7 +5,6 @@ An example controller written in Python.
 '''
 
 import json
-import sys
 from typing import Set, List, Tuple
 from mpi4py import MPI as mpi
 
@@ -26,12 +25,7 @@ def recv_json(comm: mpi.Comm) -> Tuple[object, mpi.Status]:
     # Receive actual data
     comm.Recv(buffer, status.Get_source(), status.Get_tag(), status=status)
 
-    # Note: First 4 bytes are serialization stuff added by boost
-    assert int.from_bytes(buffer[:4],
-                          byteorder=sys.byteorder,
-                          signed=False) == status.Get_count() - 4
-
-    msg: str = buffer[4:status.Get_count()].decode('utf-8')
+    msg: str = buffer[:status.Get_count()].decode('utf-8')
 
     return (json.loads(msg), status)
 
@@ -47,18 +41,13 @@ def send_json(comm: mpi.Comm, json_obj: object,
 
     s: str = json.dumps(json_obj)
     size_to_encode: int = len(s)
-    buff: bytearray = bytearray(size_to_encode + 4)
-
-    # Append the size
-    for i, b in enumerate(size_to_encode.to_bytes(
-            4, byteorder=sys.byteorder, signed=False)):
-        buff[i] = b
+    buff: bytearray = bytearray(size_to_encode)
 
     # Add the actual data
     for i, c in enumerate(s):
-        buff[4 + i] = ord(c)
+        buff[i] = ord(c)
 
-    assert buff[4:].decode('utf-8') == s
+    assert buff.decode('utf-8') == s
 
     # Send the raw buffer
     comm.Send(buff, prev_status.Get_source(), prev_status.Get_tag())
