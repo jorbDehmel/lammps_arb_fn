@@ -6,7 +6,7 @@
 LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp, _c, _v)
 {
   // Handle keywords here
-  max_ms = 2000.0;
+  max_ms = 0.0;
 
   for (int i = 0; i < _c; ++i) {
     const char *const arg = _v[i];
