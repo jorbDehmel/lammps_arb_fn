@@ -102,7 +102,7 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
     elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(now - send_time).count();
 
     // If it has been too long, indicate error
-    if (elapsed_us / 1000.0 > _max_ms) {
+    if (elapsed_us / 1000.0 > _max_ms && _max_ms > 0.0) {
       // Indicate error
       std::cerr << "Timeout!\n";
       return false;
@@ -152,20 +152,31 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   while (!got_fix) {
     // Await any sort of packet
     result = await_packet(_max_ms, json_recv, rng, time_dist, received_from);
-    if (!result || received_from != _controller_rank) { return false; }
+    if (!result) {
+      std::cerr << "await_packet failed\n";
+      return false;
+    } else if (received_from != _controller_rank) {
+      continue;
+    }
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
       MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
     } else {
-      if (json_recv["type"] != "response") { return false; }
+      if (json_recv["type"] != "response") {
+        std::cerr << "Controller sent bad packet w/ type '" << json_recv["type"] << "'\n";
+        return false;
+      }
       got_fix = true;
       break;
     }
   }
 
   // Transcribe fix data
-  if (json_recv.at("atoms").as_array().size() != _n) { return false; }
+  if (json_recv.at("atoms").as_array().size() != _n) {
+    std::cerr << "Received malformed fix data from controller.\n";
+    return false;
+  }
   for (size_t i = 0; i < _n; ++i) { _into[i] = from_json(json_recv.at("atoms").as_array().at(i)); }
 
   return true;
