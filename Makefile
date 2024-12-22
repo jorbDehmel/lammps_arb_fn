@@ -23,11 +23,11 @@ test:	test1 test2
 
 .PHONY:	test1
 test1:	example_controller.out example_worker.out
-	mpirun -n 1 ./example_controller.out : -n 3 ./example_worker.out
+	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller.out : --map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
 
 .PHONY:	test2
 test2:	example_controller_2.py example_worker.out
-	mpirun -n 1 ./example_controller_2.py : -n 3 ./example_worker.out
+	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller_2.py : --map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
 
 .PHONY:	clean
 clean:
