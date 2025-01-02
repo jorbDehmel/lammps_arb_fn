@@ -1,3 +1,7 @@
 *.o
 *.out
 *.so
+*.log
+*.avi
+log.*
+ARBFN/.clangd

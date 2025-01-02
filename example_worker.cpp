@@ -24,6 +24,7 @@ int main()
   std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng) + 1000));
 
   MPI_Init(NULL, NULL);
+  MPI_Comm comm = MPI_COMM_WORLD;
 
   // Randomize initial atom data
   for (size_t i = 0; i < num_atoms; ++i) {
@@ -44,7 +45,7 @@ int main()
     atoms.push_back(cur);
   }
 
-  const uint uid = send_registration(controller_rank);
+  const uint uid = send_registration(controller_rank, comm);
   std::cout << __FILE__ << ":" << __LINE__ << "> " << "Got controller rank " << controller_rank
             << '\n';
   assert(uid != 0);
@@ -75,7 +76,7 @@ int main()
     // Interchange
     std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " requests interchange "
               << step << "\n";
-    assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, 0));
+    assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, 0, comm));
     std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " got fix data " << step
               << "\n";
 
@@ -87,7 +88,7 @@ int main()
     }
   }
 
-  send_deregistration(uid, 0);
+  send_deregistration(uid, 0, comm);
 
   MPI_Finalize();
 

@@ -10,8 +10,19 @@ controller with the rest of the LAMMPS MPI jobs!
 #include <iostream>
 #include <list>
 #include <mpi.h>
+#include <ostream>
 #include <set>
 #include <string>
+
+/**
+ * @brief The MPI tag used for regular communication.
+ */
+const static uint ARBFN_MPI_TAG = 98765;
+
+/**
+ * @brief The MPI tag sent by workers when they want to find the controller.
+ */
+const static uint ARBFN_MPI_CONTROLLER_DISCOVER = ARBFN_MPI_TAG + 1;
 
 void send_json(MPI_Comm &_comm, const int &_target, const int &_tag,
                const boost::json::value &_what)
@@ -28,17 +39,35 @@ MPI_Status recv_json(MPI_Comm &_comm, const int &_source, boost::json::value &_i
 {
   MPI_Status out;
   char *buffer;
+  int reg_flag, disc_flag;
 
-  MPI_Probe(_source, MPI_ANY_TAG, _comm, &out);
-  assert(out._ucount > 0);
-  buffer = new char[out._ucount + 1];
+  while (true) {
+    MPI_Iprobe(_source, ARBFN_MPI_TAG, _comm, &reg_flag, &out);
+    if (reg_flag) {
+      assert(out._ucount > 0);
+      buffer = new char[out._ucount + 1];
 
-  MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
-  buffer[out._ucount] = '\0';
-  _into = boost::json::parse(buffer);
+      MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
+      buffer[out._ucount] = '\0';
+      _into = boost::json::parse(buffer);
 
-  delete[] buffer;
-  return out;
+      delete[] buffer;
+      return out;
+    }
+
+    MPI_Iprobe(_source, ARBFN_MPI_CONTROLLER_DISCOVER, _comm, &disc_flag, &out);
+    if (disc_flag) {
+      assert(out._ucount > 0);
+      buffer = new char[out._ucount + 1];
+
+      MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
+      buffer[out._ucount] = '\0';
+      _into = boost::json::parse(buffer);
+
+      delete[] buffer;
+      return out;
+    }
+  }
 }
 
 int main()
@@ -54,18 +83,21 @@ int main()
   MPI_Init(NULL, NULL);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Starting controller\n";
+  std::ostream &log = std::cerr;
+
+  log << __FILE__ << ":" << __LINE__ << "> " << "Starting controller as " << world_rank << "\n"
+      << std::flush;
 
   // For as long as there are connections left
   do {
-    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Waiting for packet\n";
+    log << __FILE__ << ":" << __LINE__ << "> " << "Waiting for packet\n" << std::flush;
 
     // Await some packet
     const auto status = recv_json(comm, MPI_ANY_SOURCE, json_val);
     json = json_val.as_object();
 
-    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Got message w/ type " << json["type"]
-              << "\n";
+    log << __FILE__ << ":" << __LINE__ << "> " << "Got message w/ type " << json["type"] << "\n"
+        << std::flush;
 
     assert(json["type"] != "waiting" && json["type"] != "ack" && json["type"] != "response");
 
@@ -116,7 +148,7 @@ int main()
     }
   } while (!uids.empty());
 
-  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Halting controller\n";
+  log << __FILE__ << ":" << __LINE__ << "> " << "Halting controller\n" << std::flush;
   MPI_Finalize();
 
   return 0;

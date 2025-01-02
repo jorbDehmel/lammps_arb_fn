@@ -27,6 +27,7 @@ FixStyle(arbfn,FixArbFn);
 #define FIX_ARBFN_HPP
 
 #include "atom.h"
+#include "comm.h"
 #include "error.h"
 #include "fix.h"
 #include "interchange.h"
@@ -45,6 +46,7 @@ class FixArbFn : public Fix {
   uint uid;
   uint controller_rank;
   double max_ms;
+  MPI_Comm comm;
 };
 }    // namespace LAMMPS_NS
 

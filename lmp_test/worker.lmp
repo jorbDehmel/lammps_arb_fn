@@ -1,0 +1,61 @@
+# Number of particles
+variable npart equal 100
+variable steps equal 200000
+variable dt equal 0.0001
+variable abp_coeff equal 50.0
+variable r equal 50.0
+
+# Misc setup
+units lj
+dimension 2
+atom_style sphere
+boundary p p p
+neighbor 0.5 bin
+neigh_modify every 1 delay 0 check yes
+
+# Define 2D box region
+region box block -${r} ${r} -${r} ${r} -.1 .1
+
+# Create the simulation box with one type of particle
+print "Creating box"
+create_box 1 box
+
+# ABP stuff
+print "ABP stuff"
+fix active all propel/self velocity ${abp_coeff}
+
+# Put particles with type 1 randomly into the region
+print "Creating particles"
+create_atoms 1 random ${npart} 324523 box
+
+# Soft pair interaction between all particles
+print "Adding pair style"
+pair_style soft 1.0
+pair_coeff * * 10.0
+
+# ARBFN stuff
+print "Adding arbfn fix"
+fix external all arbfn maxdelay 2.0
+print "Added"
+
+# Minimize energy first to avoid overlapping particles
+print "Minimizing"
+minimize 1e-4 1e-4 1000 1000
+reset_timestep 0
+
+# Save video
+print "Setting up video"
+dump video all movie 100 movie.avi type type adiam 1.0 zoom 1.0
+dump_modify video backcolor white boxcolor black
+
+# Fix number, volume, energy
+print "Fixing NVE"
+fix integrator all nve
+
+# Time step of integrator
+print "Setting timestep"
+timestep ${dt}
+
+# Number of steps to run
+print "Running"
+run ${steps}

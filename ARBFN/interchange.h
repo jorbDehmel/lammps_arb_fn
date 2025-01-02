@@ -12,6 +12,16 @@
 #include <random>
 #include <thread>
 
+/**
+ * @brief The MPI tag used for regular communication.
+ */
+const static uint ARBFN_MPI_TAG = 98765;
+
+/**
+ * @brief The MPI tag sent by workers when they want to find the controller.
+ */
+const static uint ARBFN_MPI_CONTROLLER_DISCOVER = ARBFN_MPI_TAG + 1;
+
 /** @struct AtomData
  *  @brief Represents an atom
  *  @var AtomData::x The x-position of the particle
@@ -48,20 +58,23 @@ struct FixData {
  * @param _id The UID given to this worker at registration
  * @param _max_ms The max number of milliseconds to await each response
  * @returns true on success, false on failure
+ * @param _comm The MPI_Comm object to use
  */
 bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const uint &_controller_rank);
+                 const double &_max_ms, const uint &_controller_rank, MPI_Comm &_comm);
 
 /**
  * @brief Sends a registration packet to the controller.
+ * @param _comm The MPI_Comm object to use
  * @return The UID associated with this worker, 0 on error.
  */
-uint send_registration(uint &_controller_rank);
+uint send_registration(uint &_controller_rank, MPI_Comm &_comm);
 
 /**
  * @brief Sends a deregistration packet to the controller.
  * @param _id The UID granted to this worker at registration
+ * @param _comm The MPI_Comm object to use
  */
-void send_deregistration(const uint &_id, const int &_controller_rank);
+void send_deregistration(const uint &_id, const int &_controller_rank, MPI_Comm &_comm);
 
 #endif
