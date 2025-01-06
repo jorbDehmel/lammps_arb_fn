@@ -93,7 +93,11 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
       delete[] buffer;
 
       got_any_packet = true;
-      _received_from = status.MPI_SOURCE;
+
+      std::cerr << __FILE__ << ":" << __LINE__ << "> "
+                << "Got packet from " << _recv_from << '\n'
+                << std::flush;
+
       break;
     }
 

@@ -1,6 +1,30 @@
 CPP := mpicxx -O3 -std=c++11
 LIBS := ARBFN/interchange.o
-EXTRA ?=
+
+.PHONY:	check
+check:
+	@echo "Checking for libboost-json and mpicxx w/ C++11..."
+	@$(CPP) example_controller.cpp -c -o /dev/null
+
+	@echo "Checking for python3..."
+	@python3 --version > /dev/null
+
+	@echo "Checking for pip..."
+	@pip --version > /dev/null
+
+	@echo "Checking for mpi4py..."
+	@pip list | grep mpi4py > /dev/null
+
+	@echo "Checking for autopep8..."
+	@pip list | grep autopep8 > /dev/null
+
+	@echo "Checking for cmake..."
+	@cmake --version > /dev/null
+
+	@echo "Checking for clang-format..."
+	@clang-format --version > /dev/null
+
+	@echo "Environment is valid."
 
 %.o:	%.cpp
 	$(CPP) -c -o $@ $^ $(EXTRA)
@@ -23,7 +47,8 @@ test:	test1 test2
 
 .PHONY:	test1
 test1:	example_controller.out example_worker.out
-	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller.out : --map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
+	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller.out : \
+		--map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
 
 .PHONY:	test2
 test2:	example_controller_2.py example_worker.out
