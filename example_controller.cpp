@@ -45,17 +45,35 @@ MPI_Status recv_json(MPI_Comm &_comm, const int &_source, boost::json::value &_i
 {
   MPI_Status out;
   char *buffer;
+  int reg_flag, disc_flag;
 
-  MPI_Probe(_source, MPI_ANY_TAG, _comm, &out);
-  assert(out._ucount > 0);
-  buffer = new char[out._ucount + 1];
+  while (true) {
+    MPI_Iprobe(_source, ARBFN_MPI_TAG, _comm, &reg_flag, &out);
+    if (reg_flag) {
+      assert(out._ucount > 0);
+      buffer = new char[out._ucount + 1];
 
-  MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
-  buffer[out._ucount] = '\0';
-  _into = boost::json::parse(buffer);
+      MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
+      buffer[out._ucount] = '\0';
+      _into = boost::json::parse(buffer);
 
-  delete[] buffer;
-  return out;
+      delete[] buffer;
+      return out;
+    }
+
+    MPI_Iprobe(_source, ARBFN_MPI_CONTROLLER_DISCOVER, _comm, &disc_flag, &out);
+    if (disc_flag) {
+      assert(out._ucount > 0);
+      buffer = new char[out._ucount + 1];
+
+      MPI_Recv(buffer, out._ucount, MPI_CHAR, out.MPI_SOURCE, out.MPI_TAG, _comm, &out);
+      buffer[out._ucount] = '\0';
+      _into = boost::json::parse(buffer);
+
+      delete[] buffer;
+      return out;
+    }
+  }
 }
 
 int main()
