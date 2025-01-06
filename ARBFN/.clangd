@@ -1,0 +1,5 @@
+CompileFlags:
+  Add:
+    - "-I/home/jorb/Programs/mylammps/src"
+    - "-I/usr/lib/aarch64-linux-gnu/openmpi/include"
+    - "-std=c++11"

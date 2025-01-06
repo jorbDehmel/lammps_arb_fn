@@ -7,6 +7,7 @@
 #include <mpi.h>
 #include <random>
 #include <thread>
+#include <vector>
 
 const static size_t num_updates = 1000;
 const static size_t num_atoms = 128;
@@ -20,8 +21,7 @@ int main()
   std::random_device rng;
   std::vector<AtomData> atoms;
   uint controller_rank;
-
-  std::this_thread::sleep_for(std::chrono::microseconds(time_dist(rng) + 1000));
+  MPI_Comm comm = MPI_COMM_WORLD;
 
   MPI_Init(NULL, NULL);
 
@@ -44,12 +44,12 @@ int main()
     atoms.push_back(cur);
   }
 
-  const uint uid = send_registration(controller_rank);
-  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Got controller rank " << controller_rank
-            << '\n';
-  assert(uid != 0);
+  const uint uid = send_registration(controller_rank, comm);
+  std::cout << __FILE__ << ":" << __LINE__ << "> "
+            << "Got controller rank " << controller_rank << '\n';
 
-  std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker with uid " << uid << " launched\n";
+  std::cout << __FILE__ << ":" << __LINE__ << "> "
+            << "Worker with uid " << uid << " launched\n";
 
   // Collect our atoms
   const uint n = atoms.size();
@@ -73,11 +73,12 @@ int main()
     }
 
     // Interchange
-    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " requests interchange "
-              << step << "\n";
-    assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, 0));
-    std::cout << __FILE__ << ":" << __LINE__ << "> " << "Worker " << uid << " got fix data " << step
-              << "\n";
+    std::cout << __FILE__ << ":" << __LINE__ << "> "
+              << "Worker " << uid << " requests interchange " << step << "\n";
+    assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, controller_rank,
+                       comm));
+    std::cout << __FILE__ << ":" << __LINE__ << "> "
+              << "Worker " << uid << " got fix data " << step << "\n";
 
     // Update
     for (size_t j = 0; j < n; ++j) {
@@ -87,7 +88,7 @@ int main()
     }
   }
 
-  send_deregistration(uid, 0);
+  send_deregistration(uid, controller_rank, comm);
 
   MPI_Finalize();
 

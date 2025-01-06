@@ -9,6 +9,10 @@ from typing import Set, List, Tuple
 from mpi4py import MPI as mpi
 
 
+ARBFN_MPI_TAG: int = 98765
+ARBFN_MPI_CONTROLLER_DISCOVER: int = ARBFN_MPI_TAG + 1
+
+
 def recv_json(comm: mpi.Comm) -> Tuple[object, mpi.Status]:
     '''
     Receive a JSON packet from any source.
@@ -50,7 +54,7 @@ def send_json(comm: mpi.Comm, json_obj: object,
     assert buff.decode('utf-8') == s
 
     # Send the raw buffer
-    comm.Send(buff, prev_status.Get_source(), prev_status.Get_tag())
+    comm.Send(buff, prev_status.Get_source(), ARBFN_MPI_TAG)
 
     del buff
 
@@ -68,7 +72,7 @@ def main() -> None:
         # Await some packet
         j, status = recv_json(comm)
         print(
-            f'Got message w/ type {j['type']} from worker {j['uid'] if 'uid' in j else -1}')
+            f'Got message w/ type {j["type"]} from worker {j["uid"] if "uid" in j else -1}')
 
         assert j['type'] not in ['waiting', 'ack', 'response']
 

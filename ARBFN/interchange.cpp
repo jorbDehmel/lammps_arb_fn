@@ -84,7 +84,7 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
   send_time = std::chrono::high_resolution_clock::now();
   while (!got_any_packet) {
     // Check for message recv resolution
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
+    MPI_Iprobe(MPI_ANY_SOURCE, ARBFN_MPI_TAG, comm, &flag, &status);
     if (flag && status._ucount > 0) {
       buffer = new char[status._ucount + 1];
       MPI_Recv(buffer, status._ucount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, comm, &status);
@@ -94,6 +94,11 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
 
       got_any_packet = true;
       _received_from = status.MPI_SOURCE;
+
+      std::cerr << __FILE__ << ":" << __LINE__ << "> "
+                << "Got packet from " << _received_from << '\n'
+                << std::flush;
+
       break;
     }
 
@@ -127,11 +132,10 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
  * @returns true on success, false on failure
  */
 bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const uint &_controller_rank)
+                 const double &_max_ms, const uint &_controller_rank, MPI_Comm &_comm)
 {
   bool got_fix, result;
   boost::json::object json_send, json_recv;
-  MPI_Comm comm = MPI_COMM_WORLD;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
   uint received_from;
@@ -145,7 +149,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
   json_send["atoms"] = list;
 
   std::string to_send = json_to_str(json_send) + "\0";
-  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
 
   // Await response
   got_fix = false;
@@ -161,7 +165,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
-      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
+      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
     } else {
       if (json_recv["type"] != "response") {
         std::cerr << "Controller sent bad packet w/ type '" << json_recv["type"] << "'\n";
@@ -186,9 +190,8 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
  * @brief Sends a registration packet to the controller.
  * @return The UID associated with this worker, 0 on error.
  */
-uint send_registration(uint &_controller_rank)
+uint send_registration(uint &_controller_rank, MPI_Comm &_comm)
 {
-  MPI_Comm comm = MPI_COMM_WORLD;
   boost::json::object json;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
@@ -196,14 +199,14 @@ uint send_registration(uint &_controller_rank)
   int world_size, rank;
   bool result;
 
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &world_size);
+  MPI_Comm_rank(_comm, &rank);
+  MPI_Comm_size(_comm, &world_size);
 
   json["type"] = "register";
   for (int i = 0; i < world_size; ++i) {
     if (i != rank) {
       to_send = json_to_str(json) + "\0";
-      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, i, 0, comm);
+      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, i, ARBFN_MPI_CONTROLLER_DISCOVER, _comm);
     }
   }
 
@@ -220,14 +223,13 @@ uint send_registration(uint &_controller_rank)
  * @brief Sends a deregistration packet to the controller.
  * @param _id The UID granted to this worker at registration
  */
-void send_deregistration(const uint &_id, const int &_controller_rank)
+void send_deregistration(const uint &_id, const int &_controller_rank, MPI_Comm &_comm)
 {
-  MPI_Comm comm = MPI_COMM_WORLD;
   boost::json::object to_encode;
   std::string to_send;
 
   to_encode["type"] = "deregister";
   to_encode["uid"] = _id;
   to_send = json_to_str(to_encode) + "\0";
-  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, comm);
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
 }
