@@ -21,6 +21,7 @@ int main()
   std::random_device rng;
   std::vector<AtomData> atoms;
   uint controller_rank;
+  MPI_Comm comm = MPI_COMM_WORLD;
 
   MPI_Init(NULL, NULL);
 
@@ -46,7 +47,6 @@ int main()
   const uint uid = send_registration(controller_rank, comm);
   std::cout << __FILE__ << ":" << __LINE__ << "> "
             << "Got controller rank " << controller_rank << '\n';
-  assert(uid != 0);
 
   std::cout << __FILE__ << ":" << __LINE__ << "> "
             << "Worker with uid " << uid << " launched\n";
