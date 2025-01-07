@@ -27,12 +27,12 @@ LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp,
 
 LAMMPS_NS::FixArbFn::~FixArbFn()
 {
-  send_deregistration(uid, controller_rank);
+  send_deregistration(uid, controller_rank, comm);
 }
 
 void LAMMPS_NS::FixArbFn::init()
 {
-  uid = send_registration(controller_rank);
+  uid = send_registration(controller_rank, comm);
   if (uid == 0) {
     error->all(FLERR, "`fix arbfn' failed to register with controller: Ensure it is running.");
   }
@@ -71,7 +71,7 @@ void LAMMPS_NS::FixArbFn::post_force(int)
   }
 
   // Transmit atoms, receive fix data
-  success = interchange(n, to_send.data(), to_recv.data(), uid, max_ms, controller_rank);
+  success = interchange(n, to_send.data(), to_recv.data(), uid, max_ms, controller_rank, comm);
 
   // Translate FixData struct to LAMMPS force info
   for (size_t i = 0; i < n; ++i) {

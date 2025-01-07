@@ -45,6 +45,7 @@ class FixArbFn : public Fix {
   uint uid;
   uint controller_rank;
   double max_ms;
+  MPI_Comm comm = MPI_COMM_WORLD;
 };
 }    // namespace LAMMPS_NS
 
