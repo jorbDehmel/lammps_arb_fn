@@ -1,3 +1,8 @@
 *.o
 *.out
 *.so
+*.lammps
+log.*
+*.avi
+*.mpg
+.vscode
