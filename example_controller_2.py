@@ -5,12 +5,8 @@ An example controller written in Python.
 '''
 
 import json
-from typing import Set, List, Tuple
+from typing import Tuple
 from mpi4py import MPI as mpi
-
-
-ARBFN_MPI_TAG: int = 98765
-ARBFN_MPI_CONTROLLER_DISCOVER: int = ARBFN_MPI_TAG + 1
 
 
 def recv_json(comm: mpi.Comm) -> Tuple[object, mpi.Status]:
@@ -54,7 +50,7 @@ def send_json(comm: mpi.Comm, json_obj: object,
     assert buff.decode('utf-8') == s
 
     # Send the raw buffer
-    comm.Send(buff, prev_status.Get_source(), ARBFN_MPI_TAG)
+    comm.Send(buff, prev_status.Get_source(), 0)
 
     del buff
 
@@ -64,15 +60,15 @@ def main() -> None:
     Main function
     '''
 
-    uids: Set[int] = set()
-    open_uids: List[int] = [1]
-    comm: mpi.comm = mpi.COMM_WORLD
+    _ = mpi.COMM_WORLD.Split(0)
+    comm: mpi.comm = mpi.COMM_WORLD.Split(56789)
+    num_registered: int = 0
 
     while True:
         # Await some packet
         j, status = recv_json(comm)
         print(
-            f'Got message w/ type {j["type"]} from worker {j["uid"] if "uid" in j else -1}')
+            f'Got message w/ type {j["type"]} from worker {status.Get_source()}')
 
         assert j['type'] not in ['waiting', 'ack', 'response']
 
@@ -82,24 +78,15 @@ def main() -> None:
                 'type': 'ack'
             }
 
-            if len(open_uids) == 0:
-                open_uids.append(len(uids) + 1)
-
-            to_send['uid'] = open_uids[0]
-            uids.add(open_uids[0])
-            open_uids.pop(0)
-
+            num_registered += 1
             send_json(comm, to_send, status)
 
         elif j['type'] == 'deregister':
             # Erase a worker
 
-            uid: int = j['uid']
-            assert uid in uids
-            uids.remove(uid)
-            open_uids.append(uid)
+            num_registered -= 1
 
-            if not uids:
+            if num_registered == 0:
                 break
 
         # Data processing
@@ -116,8 +103,7 @@ def main() -> None:
 
             to_send = {
                 'type': 'response',
-                'atoms': l,
-                'uid': j['uid']
+                'atoms': l
             }
             assert len(to_send['atoms']) == len(j['atoms'])
 

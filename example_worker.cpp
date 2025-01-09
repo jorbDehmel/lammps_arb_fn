@@ -21,9 +21,19 @@ int main()
   std::random_device rng;
   std::vector<AtomData> atoms;
   uint controller_rank;
-  MPI_Comm comm = MPI_COMM_WORLD;
+  MPI_Comm comm, junk_comm;
 
   MPI_Init(NULL, NULL);
+
+  std::cerr << __FILE__ << ":" << __LINE__ << "> "
+            << "Comm split 1 (LAMMPS internal)...\n"
+            << std::flush;
+  MPI_Comm_split(MPI_COMM_WORLD, 0, 0, &junk_comm);
+
+  std::cerr << __FILE__ << ":" << __LINE__ << "> "
+            << "Comm split 2 (ARBFN alignment)...\n"
+            << std::flush;
+  MPI_Comm_split(MPI_COMM_WORLD, ARBFN_MPI_COLOR, 0, &comm);
 
   // Randomize initial atom data
   for (size_t i = 0; i < num_atoms; ++i) {
@@ -75,8 +85,8 @@ int main()
     // Interchange
     std::cout << __FILE__ << ":" << __LINE__ << "> "
               << "Worker " << uid << " requests interchange " << step << "\n";
-    assert(interchange(n, atom_info_send.data(), fix_info_recv.data(), uid, max_ms, controller_rank,
-                       comm));
+    assert(
+        interchange(n, atom_info_send.data(), fix_info_recv.data(), max_ms, controller_rank, comm));
     std::cout << __FILE__ << ":" << __LINE__ << "> "
               << "Worker " << uid << " got fix data " << step << "\n";
 
@@ -88,8 +98,9 @@ int main()
     }
   }
 
-  send_deregistration(uid, controller_rank, comm);
+  send_deregistration(controller_rank, comm);
 
+  MPI_Comm_free(&comm);
   MPI_Finalize();
 
   return 0;
