@@ -65,15 +65,16 @@ FixData from_json(const boost::json::value &_to_parse)
  * @param _into The `boost::json` to save the packet into
  * @param _rng Random number generator
  * @param _time_dist Uniform int range for use w/ `_rng`
- * @param _received_from Where to save the UID of the sender
+ * @param _received_from Where to save the MPI source of the sender
+ * @param _comm The MPI communicator to use
  * @return True on success, false on failure
  */
 bool await_packet(const double &_max_ms, boost::json::object &_into, std::random_device &_rng,
-                  std::uniform_int_distribution<uint> &_time_dist, uint &_received_from)
+                  std::uniform_int_distribution<uint> &_time_dist, uint &_received_from,
+                  MPI_Comm &_comm)
 {
   bool got_any_packet;
   std::chrono::high_resolution_clock::time_point send_time, now;
-  MPI_Comm comm = MPI_COMM_WORLD;
   std::string response;
   uint64_t elapsed_us;
   MPI_Status status;
@@ -84,20 +85,16 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
   send_time = std::chrono::high_resolution_clock::now();
   while (!got_any_packet) {
     // Check for message recv resolution
-    MPI_Iprobe(MPI_ANY_SOURCE, ARBFN_MPI_TAG, comm, &flag, &status);
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, _comm, &flag, &status);
     if (flag && status._ucount > 0) {
       buffer = new char[status._ucount + 1];
-      MPI_Recv(buffer, status._ucount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, comm, &status);
+      MPI_Recv(buffer, status._ucount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, _comm, &status);
       buffer[status._ucount] = '\0';
       response = buffer;
       delete[] buffer;
 
       got_any_packet = true;
       _received_from = status.MPI_SOURCE;
-
-      std::cerr << __FILE__ << ":" << __LINE__ << "> "
-                << "Got packet from " << _received_from << '\n'
-                << std::flush;
 
       break;
     }
@@ -127,35 +124,34 @@ bool await_packet(const double &_max_ms, boost::json::object &_into, std::random
  * @param _n The number of atoms/fixes in the arrays.
  * @param _from An array of atom data to send
  * @param _into An array of fix data that was received
- * @param _id The UID given to this worker at registration
  * @param _max_ms The max number of milliseconds to await each response
  * @returns true on success, false on failure
  */
-bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const uint &_controller_rank, MPI_Comm &_comm)
+bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const double &_max_ms,
+                 const uint &_controller_rank, MPI_Comm &_comm)
 {
   bool got_fix, result;
   boost::json::object json_send, json_recv;
   std::random_device rng;
   std::uniform_int_distribution<uint> time_dist(0, 500);
   uint received_from;
+  boost::json::array list;
+  std::string to_send;
 
   // Prepare and send the packet
   json_send["type"] = "request";
   json_send["expectResponse"] = _max_ms;
-  json_send["uid"] = _id;
-  boost::json::array list;
   for (size_t i = 0; i < _n; ++i) { list.push_back(to_json(_from[i])); }
   json_send["atoms"] = list;
 
-  std::string to_send = json_to_str(json_send) + "\0";
-  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
+  to_send = json_to_str(json_send);
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, _comm);
 
   // Await response
   got_fix = false;
   while (!got_fix) {
     // Await any sort of packet
-    result = await_packet(_max_ms, json_recv, rng, time_dist, received_from);
+    result = await_packet(_max_ms, json_recv, rng, time_dist, received_from, _comm);
     if (!result) {
       std::cerr << "await_packet failed\n";
       return false;
@@ -165,7 +161,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
-      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
+      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, _comm);
     } else {
       if (json_recv["type"] != "response") {
         std::cerr << "Controller sent bad packet w/ type '" << json_recv["type"] << "'\n";
@@ -178,7 +174,8 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
   // Transcribe fix data
   if (json_recv.at("atoms").as_array().size() != _n) {
-    std::cerr << "Received malformed fix data from controller.\n";
+    std::cerr << "Received malformed fix data from controller: Expected " << _n
+              << " atoms, but got " << json_recv.at("atoms").as_array().size() << "\n";
     return false;
   }
   for (size_t i = 0; i < _n; ++i) { _into[i] = from_json(json_recv.at("atoms").as_array().at(i)); }
@@ -188,9 +185,9 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
 /**
  * @brief Sends a registration packet to the controller.
- * @return The UID associated with this worker, 0 on error.
+ * @return True on success, false on error.
  */
-uint send_registration(uint &_controller_rank, MPI_Comm &_comm)
+bool send_registration(uint &_controller_rank, MPI_Comm &_comm)
 {
   boost::json::object json;
   std::random_device rng;
@@ -203,33 +200,26 @@ uint send_registration(uint &_controller_rank, MPI_Comm &_comm)
   MPI_Comm_size(_comm, &world_size);
 
   json["type"] = "register";
+  to_send = json_to_str(json);
+
   for (int i = 0; i < world_size; ++i) {
-    if (i != rank) {
-      to_send = json_to_str(json) + "\0";
-      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, i, ARBFN_MPI_CONTROLLER_DISCOVER, _comm);
-    }
+    if (i != rank) { MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, i, 0, _comm); }
   }
 
   json.clear();
   do {
-    result = await_packet(1000.0, json, rng, time_dist, _controller_rank);
-    if (!result) { return 0; }
-  } while (!json.contains("type") || json.at("type") != "ack" || !json.contains("uid"));
+    result = await_packet(10000.0, json, rng, time_dist, _controller_rank, _comm);
+    if (!result) { return false; }
+  } while (!json.contains("type") || json.at("type") != "ack");
 
-  return json.at("uid").as_int64();
+  return true;
 }
 
 /**
  * @brief Sends a deregistration packet to the controller.
- * @param _id The UID granted to this worker at registration
  */
-void send_deregistration(const uint &_id, const int &_controller_rank, MPI_Comm &_comm)
+void send_deregistration(const int &_controller_rank, MPI_Comm &_comm)
 {
-  boost::json::object to_encode;
-  std::string to_send;
-
-  to_encode["type"] = "deregister";
-  to_encode["uid"] = _id;
-  to_send = json_to_str(to_encode) + "\0";
-  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, ARBFN_MPI_TAG, _comm);
+  std::string to_send = "{\"type\": \"deregister\"}";
+  MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, _comm);
 }

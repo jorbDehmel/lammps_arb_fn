@@ -13,14 +13,9 @@
 #include <thread>
 
 /**
- * @brief The MPI tag used for regular communication.
+ * @brief The color all ARBFN comms will be expected to have
  */
-const static uint ARBFN_MPI_TAG = 98765;
-
-/**
- * @brief The MPI tag sent by workers when they want to find the controller.
- */
-const static uint ARBFN_MPI_CONTROLLER_DISCOVER = ARBFN_MPI_TAG + 1;
+const static int ARBFN_MPI_COLOR = 56789;
 
 /** @struct AtomData
  *  @brief Represents an atom
@@ -55,23 +50,21 @@ struct FixData {
  * @param _n The number of atoms/fixes in the arrays.
  * @param _from An array of atom data to send
  * @param _into An array of fix data that was received
- * @param _id The UID given to this worker at registration
  * @param _max_ms The max number of milliseconds to await each response
  * @returns true on success, false on failure
  */
-bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const uint &_id,
-                 const double &_max_ms, const uint &_controller_rank, MPI_Comm &_comm);
+bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], const double &_max_ms,
+                 const uint &_controller_rank, MPI_Comm &_comm);
 
 /**
  * @brief Sends a registration packet to the controller.
- * @return The UID associated with this worker, 0 on error.
+ * @return True on success, false on error.
  */
-uint send_registration(uint &_controller_rank, MPI_Comm &_comm);
+bool send_registration(uint &_controller_rank, MPI_Comm &_comm);
 
 /**
  * @brief Sends a deregistration packet to the controller.
- * @param _id The UID granted to this worker at registration
  */
-void send_deregistration(const uint &_id, const int &_controller_rank, MPI_Comm &_comm);
+void send_deregistration(const int &_controller_rank, MPI_Comm &_comm);
 
 #endif
