@@ -26,15 +26,6 @@ check:
 
 	@echo "Environment is valid."
 
-%.o:	%.cpp
-	$(CPP) -c -o $@ $^ $(EXTRA)
-
-example_controller.out:	example_controller.o
-	$(CPP) -o $@ $^
-
-%.out:	%.o $(LIBS)
-	$(CPP) -o $@ $^
-
 .PHONY:	format
 format:
 	find . -type f \( -iname "*.cpp" -or -iname "*.hpp" \) \
@@ -43,16 +34,19 @@ format:
 		autopep8 --in-place --aggressive --aggressive "{}" \;
 
 .PHONY:	test
-test:	test1 test2
+test:	test1 test2 test3
 
 .PHONY:	test1
-test1:	example_controller.out example_worker.out
-	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller.out : \
-		--map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
+test1:
+	$(MAKE) -C tests $@
 
 .PHONY:	test2
-test2:	example_controller_2.py example_worker.out
-	mpirun --map-by :OVERSUBSCRIBE -n 1 ./example_controller_2.py : --map-by :OVERSUBSCRIBE -n 3 ./example_worker.out
+test2:
+	$(MAKE) -C tests $@
+
+.PHONY:	test3
+test3:
+	$(MAKE) -C tests $@
 
 .PHONY:	clean
 clean:
