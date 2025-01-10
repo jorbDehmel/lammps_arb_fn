@@ -161,7 +161,7 @@ bool interchange(const size_t &_n, const AtomData _from[], FixData _into[], cons
 
     // If "waiting" packet, continue. Else, break.
     if (json_recv.at("type") == "waiting") {
-      MPI_Send(to_send.c_str(), to_send.size(), MPI_CHAR, _controller_rank, 0, _comm);
+      continue;
     } else {
       if (json_recv["type"] != "response") {
         std::cerr << "Controller sent bad packet w/ type '" << json_recv["type"] << "'\n";

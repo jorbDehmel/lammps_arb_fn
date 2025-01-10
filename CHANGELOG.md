@@ -1,5 +1,15 @@
 
+# Todo
+- Currently hangs in error states: Make it shut down properly
+
 # Changelog
+
+## `0.1.1` (1/9/2025)
+- Added some integration testing
+- Reorganized repo to unclutter root dir
+- Fixed formatting in INSTALL.py
+- Removed most output from tests
+- Fixed bug causing hang w/ `waiting` packets
 
 ## `0.1.0` (1/9/2025)
 - Got LAMMPS integration functional

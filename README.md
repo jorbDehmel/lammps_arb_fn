@@ -69,6 +69,25 @@ python3 INSTALL.py
 ```
 from this directory and follow the instructions given.
 
+## Using the Fix
+
+The `ARBFN` package provides the `arbfn` fix, shown below.
+
+```lammps
+fix name_1 all arbfn
+fix name_2 all arbfn maxdelay 50.0
+fix name_3 all arbfn every 100
+fix name_4 all arbfn maxdelay 50.0 every 100
+```
+
+The `maxdelay X` (where `X` is the max number of milliseconds to
+await a response before erroring, with $0.0$ ms meaning no
+limit) and `every Y` (where the fix is applied every `Y`
+timesteps, with $1$ being every step and $0$ being undefined)
+arguments are both optional. The default max delay is $0.0$ (no
+limit) and the default periodicity is $1$ (apply every
+time step).
+
 ## Running Simulations
 
 Although LAMMPS is built on MPI, extra care is needed when
@@ -164,10 +183,14 @@ perspective.
             be a double corresponding to the prescribed deltas
             in force for their respective dimension.
 3) (SERVER) Shutdown
-    - After all workers have send `"deregister"` packets, the
-        controller must shut down and free its resources in the
-        traditional MPI way (EG `MPI_Comm_free` and
-        `MPI_Finalize`).
+    - After all workers have send `"deregister"` packets, LAMMPS
+        will begin shutting down. This entails one final MPI
+        barrier, so we the controller must call `MPI_Barrier`
+        on **`MPI_COMM_WORLD`**. After this, LAMMPS will halt.
+    - Now, the controller must shut down and free its resources
+        in the traditional `C` MPI way (EG `MPI_Comm_free` and
+        `MPI_Finalize`). The server can now halt. If improperly
+        synced, the system will hang without error.
 
 This ends our description of the controller protocol. We will
 now describe the worker side of the protocol, omitting any
@@ -202,7 +225,8 @@ information which can be deduced from the above.
     - Once LAMMPS is done, the fix destructor will be called.
         This method must send the deregistration packet to the
         controller and free up any resources used (MPI or
-        standard).
+        standard). The worker **does not** need to call
+        `MPI_Barrier`, unlike the controller.
 
 ## Disclaimer
 
