@@ -21,7 +21,8 @@ def main() -> int:
         print('Please re-run as sudo.')
         return 1
 
-    lammps_path: str = input('Please enter the filepath to the `lammps` source code repository: ')
+    lammps_path: str = input(
+        'Please enter the filepath to the `lammps` source code repository: ')
     lammps_path = path.abspath(lammps_path)
 
     copy_source: str = path.abspath('ARBFN')
