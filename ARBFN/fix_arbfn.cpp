@@ -29,6 +29,8 @@ LAMMPS_NS::FixArbFn::FixArbFn(class LAMMPS *_lmp, int _c, char **_v) : Fix(_lmp,
       }
       every = utils::numeric(FLERR, _v[i + 1], false, _lmp);
       ++i;
+    } else if (strcmp(arg, "dipole") == 0) {
+      is_dipole = !is_dipole;
     }
 
     else {

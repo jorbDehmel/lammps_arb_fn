@@ -4,6 +4,11 @@
 
 # Changelog
 
+## `0.1.2` (1/10/2025)
+- Added support for dipole moments (orientation components and
+    magnitude $\mu$) via the `dipole` fix argument
+- Normalized doxygen in headers
+
 ## `0.1.1` (1/9/2025)
 - Added some integration testing
 - Reorganized repo to unclutter root dir

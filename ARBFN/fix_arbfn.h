@@ -32,7 +32,7 @@ FixStyle(arbfn,FixArbFn);
 #include "fix.h"
 #include "interchange.h"
 
-#define FIX_ARBFN_VERSION "0.1.1"
+#define FIX_ARBFN_VERSION "0.1.2"
 
 namespace LAMMPS_NS {
 class FixArbFn : public Fix {
@@ -49,6 +49,7 @@ class FixArbFn : public Fix {
   double max_ms;
   MPI_Comm comm;
   uintmax_t every, counter;
+  bool is_dipole = false;
 };
 }    // namespace LAMMPS_NS
 
