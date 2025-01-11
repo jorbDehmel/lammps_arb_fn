@@ -1,19 +1,34 @@
 
-# Arbitrary Single-Atom Fixes via MPI in LAMMPS
+# Arbitrary Externally-Computed Force Fixes in LAMMPS (`ARBFN`)
 
 ![Test Badge](https://github.com/jorbDehmel/lammps_arb_fn/actions/workflows/ci-test.yml/badge.svg)
 
 J Dehmel, J Schiffbauer, 2024/25 (MIT License)
 
-## Abstract
+## Motivation and Abstract
 
-**TODO: Write this**
+When dielectric colloidal Janus particles are placed in
+pseudo-2D environments, severe wall effects come into play
+complicating the measurement of bulk motility. The efficient and
+easy implementation of semi-empirical wall-effect systems in
+LAMMPS would ease the understanding of these effects and
+possibly lead to their mitigation or control. In this case, the
+addition of arbitrary force fields onto the simulation space
+would be useful. This project introduces an
+externally-controlled arbitrary atomic forcing fix for LAMMPS
+within the existing MPI framework. This involves an
+arbitrary-language controller program being instantiated
+alongside LAMMPS in an MPI runtime, then communicating with all
+LAMMPS instances whenever the desired fix must be computed. The
+protocol communicates in JSON strings and assumes no linguistic
+properties except a valid MPI implementation.
 
 ## Requirements and Testing
 
 This software is built to work with the LAMMPS source code, and
 is such written in `C++` using MPI. The following are
 requirements for compilation:
+
 - `g++` and `make` (you almost certainly already have these)
 - `CMake`
 - Some MPI provider (EG `openmpi`: You probably also have this
@@ -22,6 +37,7 @@ requirements for compilation:
 
 The following software is required for testing, but not
 necessarily for non-testing compilation.
+
 - `python3`
 - `python3-pip`
 - `mpi4py`
@@ -29,12 +45,13 @@ necessarily for non-testing compilation.
 - (Optional) `docker`
 
 To check your system for the given requirements, run
+
 ```sh
 make check
 ```
-from this directory.
 
-To test the source code, run
+from this directory. To test the source code, run
+
 ```sh
 make test
 ```
@@ -64,10 +81,16 @@ then copies the `ARBFN` source code into it, then modifies
 `CMake` installation process.
 
 To run the installation script, simply run
+
 ```sh
 python3 INSTALL.py
 ```
+
 from this directory and follow the instructions given.
+
+**Note:** this requires you to have already cloned the LAMMPS
+source code somewhere locally: Directions for this can be found
+in the aforementioned LAMMPS build guide.
 
 ## Using the Fix
 
@@ -235,7 +258,11 @@ information which can be deduced from the above.
         standard). The worker **does not** need to call
         `MPI_Barrier`, unlike the controller.
 
+When developing a controller, it is best to use the provided
+example controllers in `./tests/` as templates.
+
 ## Disclaimer
 
 FOSS under the MIT license. Supported by NSF grant
-INSERT GRANT NUMBER(S) HERE.
+INSERT GRANT NUMBER(S) HERE. Based upon work partially funded by
+Colorado Mesa University.
