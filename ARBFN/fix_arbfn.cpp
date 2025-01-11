@@ -70,6 +70,7 @@ void LAMMPS_NS::FixArbFn::post_force(int)
   double *const *const x = atom->x;
   double *const *const v = atom->v;
   double *const *const f = atom->f;
+  double *const *const mu = atom->mu;
   int *const mask = atom->mask;
 
   // Variables
@@ -90,6 +91,14 @@ void LAMMPS_NS::FixArbFn::post_force(int)
       to_add.fx = f[i][0];
       to_add.fy = f[i][1];
       to_add.fz = f[i][2];
+
+      to_add.is_dipole = is_dipole;
+      if (to_add.is_dipole) {
+        to_add.mux = mu[i][0];
+        to_add.muy = mu[i][1];
+        to_add.muz = mu[i][2];
+      }
+
       to_send.push_back(to_add);
       ++n;
     }

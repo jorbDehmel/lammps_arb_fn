@@ -31,7 +31,6 @@ const static int ARBFN_MPI_COLOR = 56789;
  * @var AtomData::fz The z-force of the particle
  * @var AtomData::is_dipole Whether or not mu elements should be
  * used
- * @var AtomData::mu Magnitude of dipole moment
  * @var AtomData::mux X component of dipole moment orientation
  * @var AtomData::muy Y component of dipole moment orientation
  * @var AtomData::muz Z component of dipole moment orientation
@@ -42,7 +41,7 @@ struct AtomData {
   double z, vz, fz;
 
   bool is_dipole = false;
-  double mu, mux, muy, muz;
+  double mux, muy, muz;
 };
 
 /**

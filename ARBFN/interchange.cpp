@@ -41,7 +41,6 @@ boost::json::object to_json(const AtomData &_what)
   j["fz"] = _what.fz;
 
   if (_what.is_dipole) {
-    j["mu"] = _what.mu;
     j["mux"] = _what.mux;
     j["muy"] = _what.muy;
     j["muz"] = _what.muz;

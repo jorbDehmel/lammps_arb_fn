@@ -88,6 +88,13 @@ arguments are both optional. The default max delay is $0.0$ (no
 limit) and the default periodicity is $1$ (apply every
 time step).
 
+There is also the `dipole` argument, which includes the values
+`"mu"`, `"mux"`, `"muy"`, `"muz"` from LAMMPS for each atom.
+
+```lammps
+fix name_5 all arbfn dipole
+```
+
 ## Running Simulations
 
 Although LAMMPS is built on MPI, extra care is needed when
