@@ -1,0 +1,16 @@
+
+When dielectric colloidal Janus particles are placed in
+pseudo-2D environments, severe wall effects come into play
+complicating the measurement of bulk motility. The efficient and
+easy implementation of semi-empirical wall-effect systems in
+LAMMPS would ease the understanding of these effects and
+possibly lead to their mitigation or control. In this case, the
+addition of arbitrary force fields onto the simulation space
+would be useful. This project introduces an
+externally-controlled arbitrary atomic forcing fix for LAMMPS
+within the existing MPI framework. This involves an
+arbitrary-language controller program being instantiated
+alongside LAMMPS in an MPI runtime, then communicating with all
+LAMMPS instances whenever the desired fix must be computed. The
+protocol communicates in JSON strings and assumes no linguistic
+properties except a valid MPI implementation.

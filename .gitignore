@@ -5,4 +5,8 @@
 log.*
 *.avi
 *.mpg
+*.aux
+*.tmp
+*.pdf
+
 .vscode

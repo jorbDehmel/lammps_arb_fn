@@ -1,0 +1,68 @@
+\documentclass[8pt]{amsart}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{cite}
+\usepackage{amsthm}
+\usepackage{relsize}
+\usepackage{moresize}
+\usepackage{color}
+\usepackage{amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[many]{tcolorbox}
+\tcbuselibrary{listings}
+\geometry{letterpaper}
+\newtcblisting{code} {
+    listing only,
+    breakable,
+    boxrule = 1pt,
+    colframe = gray,
+    listing options = {
+    basicstyle = \ttfamily\relsize{-1},
+    breaklines = true,
+    columns = fullflexible,
+    commentstyle = \color{olive},
+    keywordstyle = \color{MidnightBlue},
+    stringstyle = \color{OliveGreen},
+    breakatwhitespace = false,
+    keepspaces = true,
+    numbersep = 5pt,
+    showspaces = false,
+    showstringspaces = false,
+    showtabs = false,
+    tabsize = 2}}
+\newtcblisting{codeoutput}{
+    listing only,
+    breakable,
+    colback = white,
+    boxrule = 1pt,
+    colframe = gray,
+    listing options = {
+    basicstyle =\ttfamily\relsize{-1},
+    breaklines = true,
+    columns = fullflexible}}
+
+% FOR DRAFTS ONLY
+% \usepackage{setspace}
+% \doublespacing
+% END DRAFT SECTION
+
+\graphicspath{.}
+\geometry{letterpaper}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+\begin{document}
+    \input{sections/titlepage.tex}
+
+    \begin{multicols}{2}
+
+        \bibliographystyle{plain}
+        \bibliography{refs}
+
+    \end{multicols}
+
+\end{document}
