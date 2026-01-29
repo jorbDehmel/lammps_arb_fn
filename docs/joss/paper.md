@@ -210,6 +210,81 @@ fix name_3 all arbfn/ffield 100 200 300
 fix name_4 all arbfn/ffield 10 10 10 every 100
 ```
 
+# Research Impact Statement
+
+ARFBN provides a generic, extensible interface between LAMMPS
+and simulation state–dependent external forcing, enabling
+closed-loop feedback control within molecular dynamics
+simulations. This capability addresses a long-standing
+limitation in LAMMPS workflows: while user-defined forces are
+well supported, dynamically coupling forces to evolving global
+or local simulation state—particularly via external controllers
+such as optimization or machine-learning models—has typically
+required ad hoc code modifications that hinder reuse,
+validation, and reproducibility.
+
+The near-term significance of ARFBN is its support for
+feedback-controlled simulations of active matter systems,
+including active colloids, where modulating the collective
+behavior of swarms of active agents requires spatiotemporal
+forcing that depends explicitly on instantaneous particle
+configurations, density fields, or collective observables. This
+enables in silico development, benchmarking, and validation of
+control strategies prior to experimental deployment, reducing
+development cost and allowing systematic exploration of control
+protocols that are difficult to design directly in the
+laboratory. For example, ARFBN enables simulation studies aimed
+at dynamically regulating density distributions or pattern
+formation in active colloidal suspensions via externally
+applied, state-aware forcing.
+
+ARFBN is implemented as a modular LAMMPS extension, promoting
+reuse and reproducibility. Benchmarks
+demonstrate that the additional computational overhead
+introduced by ARFBN is an acceptable increase compared to
+baseline LAMMPS timestepping for representative active-matter
+workloads, and scales linearly with system size. The software
+is released under the MIT license with documented interfaces,
+and will be updated as additional example test cases and use
+cases are developed.
+
+# State of the Field
+
+Existing software packages related to LAMMPS interfacing (EG
+QMMM [@qmmm], FitSNAP [@Rohskopf2023]) have traditionally used
+custom ad-hoc communication protocols, leading to duplicated
+labor and requiring a higher overhead for any modifications or
+related works. ARBFN seeks to standardize communication and
+allow a low-overhead, modular approach to particle control. This
+represents an unfilled niche.
+
+# Software Design
+
+Since MPI is already at the core of LAMMPS for distributed
+computation purposes, it was a natural choice for controller
+communication. It gives us interprocess communication on a local
+or distributed architecture for no additional dependency
+overhead. In such a setup, it is natural to assign the
+controller to be just another process for MPI to manage, which
+is what was implemented.
+
+Initial testing with the every-timestep protocol revealed
+that its related overhead was both large and unnecessary for
+most tasks. Although this may be needed for more intricate
+cases, it was determined that a lighter-weight alternative
+should also be developed. This motivated the development of the
+`ffield` protocol, which is fast at the expense of computational
+ability.
+
+`ffield` was also derived as a natural solution to the problem
+of imposing position-only forces, which was our underlying
+motivation for this project's development.
+
+Finally, we developed the third protocol (updating the `ffield`
+grid every `n` steps) as an interpolation of the first two
+protocols, allowing the user to choose how to prioritize control
+and simulation time.
+
 # Details
 
 ## `fix arbfn` \label{arbfn}
@@ -387,6 +462,13 @@ concern in molecular dynamics. Systems like
 hand-modification of particle forces within their systems, even
 though their concern is primarily in human-simulation interface
 rather than software-simulation.
+
+# AI usage disclosure
+
+AI tools were used for initial drafting of the research impact
+section, edited and verified by the authors. No other portion of
+this document, software development, or supporting materials
+used AI tools.
 
 # Acknowledgements
 
